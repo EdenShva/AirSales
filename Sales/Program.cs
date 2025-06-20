@@ -1,70 +1,57 @@
-﻿using System.Collections.Concurrent;
+﻿using System;
+using System.Collections.Concurrent;
 using System.IO.MemoryMappedFiles;
 using System.Timers;
 using Sales;
 using SuperSimpleTcp;
 using Timer = System.Timers.Timer;
 
-
 namespace Sales;
-
 class Program
 {
-    // Define GUID string
-
     const byte departure = 0x5D;
-    const byte weAreTooRichNow = 0x7A;
+    const byte weAreTooRichNow = 0x7A; 
     const byte allFlightsSoldOut = 0x9E;
 
     const int nWorkers = 5;
     const int nFlights = 3;
+    
+    private static string managerIpPort = "";
+    private static bool endOfSalesCalled = false;
 
-    const string MmfName = "AirSalesMMF";
-    const string MutexName = "Global\\AirSalesMMF_Mutex";
+    private static object consoleLock = new();
+    private static object salesStatLock = new();
+    private static object endOfSalesLock = new();
 
+    private static Random random = new();
+    private static Timer clientCreationTimer=new();
+    private static CancellationTokenSource cts = new();  
+    private static SalesStat salesStat = new(); 
 
+    private static ConcurrentQueue<Client> clientQueue = new();
+    private static List<Flight> flights = new();
 
-
-    Timer clientCreationTimer;      // Create clientCreationTimer,
-    CancellationTokenSource cts = new();    // CancellationTokenSource()
-    ConcurrentQueue<Client> clientQueue = new();   // ConcurrentQueue<Client>()
-    List<Flight> flights = new();   // Create Flights i.e.: List<Flight>
-    MemoryMappedFile mmf;   // Create mmf
-    SimpleTcpServer tcpServer;   // Create tcpServer
-    Mutex mmfMutex = new(false, MutexName);    // Create Mutex for accessing mmf
-    SalesStat salesStat = new();  // Create salesStat object to store sales statistics
-    // locks and other variables
-    string managerIpPort = "";
-    object consoleLock = new();
-    object salesStatLock = new();
-    bool endOfSalesCalled = false;
-    object endOfSalesLock = new();
-
+    private static SimpleTcpServer tcpServer;
+    private static MemoryMappedFile mmf;
+    private static Mutex mmfMutex;  
 
     static void Main(string[] args)
-    {
-        var program = new Program();
-        program.Run();
-    }
-
-    void Run()
     {
         InitializeFlights();
         InitializeSharedMemory();
         StartTcpServer();
-        // Wait for manager to start and connect to tcpServer
+
         Console.WriteLine("Press any key when manager process ready..");
         Console.ReadKey();
 
         StartClientFactory();
         StartWorkerThreads();
 
-        // This statement prevents the program from ending prematurely
         Console.ReadLine();
         return;
     }
 
-    void InitializeFlights()
+    static void InitializeFlights()
     {
         for (int i = 0; i < nFlights; i++)
         {
@@ -73,29 +60,25 @@ class Program
         }
     }
 
-    void InitializeSharedMemory()
+    static void InitializeSharedMemory()
     {
-        mmf = MemoryMappedFile.CreateOrOpen(MmfName, 4096);
+        mmf = MemoryMappedFile.CreateOrOpen("AirSalesMMF", 4096);
         PrintWithLock("Memory-mapped file created (4KB).");
+
+        mmfMutex = new(false, "Global\\AirSalesMMF_Mutex");
     }
 
-    void StartTcpServer()
+    static void StartTcpServer()
     {
-        // Start tcpServer and define Events
-
-        tcpServer = new SimpleTcpServer("0.0.0.0:9000"); 
+        tcpServer = new SimpleTcpServer("127.0.0.1:17000"); 
         tcpServer.Events.ClientConnected += TcpServerOnClientConnected;
         tcpServer.Events.DataReceived += TcpServerOnDataReceived;
         tcpServer.Start();
-        PrintWithLock("TCP server started on port 9000.");
+        PrintWithLock("TCP server started on port 17000.");
     }
 
-    void TcpServerOnDataReceived(object? sender, DataReceivedEventArgs e)
+    static void TcpServerOnDataReceived(object? sender, DataReceivedEventArgs e)
     {
-        // When data received 
-        // 1. If it is weAreTooRichNow then  EndOfSales(Reason.TooRich);
-        // 2. If it is departure then  EndOfSales(Reason.Departure);
-
         if (e.Data.Array == null || e.Data.Count == 0)
             return;
 
@@ -117,22 +100,14 @@ class Program
         }
     }
 
-    void TcpServerOnClientConnected(object? sender, ConnectionEventArgs e)
+    static void TcpServerOnClientConnected(object? sender, ConnectionEventArgs e)
     {
-        // Save `e.IpPort` into a variable 
-        // Print appropriate message
-
         managerIpPort = e.IpPort;
         PrintWithLock($"Manager connected from {managerIpPort}");
     }
 
-
-    void UpdateSharedMemory()
+    static void UpdateSharedMemory()
     {
-        // 1. Acquire Mutex
-        // 2. Update MMF data
-        // don't forget to use try/finally
-
         try
         {
             mmfMutex.WaitOne();
@@ -148,21 +123,10 @@ class Program
         {
             mmfMutex.ReleaseMutex();
         }
-
     }
 
-    void Sell(object? obj)
+    static void Sell(object? obj)
     {
-        // 0. Get Worker object from obj
-        // 1. Worker thread seats in a loop until it being cancelled or until all flights are sold out
-        // 2. In a loop:
-        //  2.1 Try to take Client from queue (if none available just continue)
-        //  2.2 Go over all the flights and try to book a seat for a client
-        //  2.3 If succeeds 
-        //      2.3.1 Print a message
-        //      2.3.2 Update workers own stats and shared memory
-        //  3. If All tickets sold out : EndOfSales(Reason.SoldOut)
-
         if (obj is not Worker worker)
             return;
 
@@ -182,7 +146,7 @@ class Program
             {
                 if (flight.TryBookSeat(out int cost))
                 {
-                    // עדכון הסטטיסטיקות בתוך lock למניעת תחרות
+
                     lock (salesStatLock)
                     {
                         salesStat.TotalRevenue += cost;
@@ -206,17 +170,8 @@ class Program
         }
     }
 
-
-
-    void EndOfSales(Reason reason)
+    static void EndOfSales(Reason reason)
     {
-        // Ensure only 1 thread will enter this function only once
-        // Cancel the CancellationTokenSource
-        // Stop the clientCreationTimer
-        // Print the reason - why program stopped
-        // If the reason is ALL FLIGHTS SOLD OUT
-        // Then don't forget You have to send the code via TCP to Manager
-
         lock (endOfSalesLock)
         {
             if (endOfSalesCalled) return; 
@@ -230,7 +185,6 @@ class Program
 
         if (reason == Reason.SoldOut)
         {
-
             if (!string.IsNullOrEmpty(managerIpPort))
             {
                 byte code = allFlightsSoldOut;
@@ -238,14 +192,10 @@ class Program
                 PrintWithLock($"Sent sold-out code ({code:X2}) to manager at {managerIpPort}");
             }
         }
-
     }
 
-    void StartWorkerThreads()
+    static void StartWorkerThreads()
     {
-        // Create threads and workers
-        // Start worker threads and bind worker objects to threads
-
         for (int i = 0; i < nWorkers; i++)
         {
             var worker = new Worker(cts.Token);
@@ -255,39 +205,29 @@ class Program
         }
     }
 
-    void CreateClient(object? sender, ElapsedEventArgs e)
+    static void CreateClient(object? sender, ElapsedEventArgs e)
     {
-        // Rearm clientCreationTimer
-        // Create new client
-        // Print message
-        // Client should enter the queue
-
-        var client = new Client(); // Create a new client instance
-
-        clientQueue.Enqueue(client); // Add the client to the queue
-
+        var client = new Client(); 
+        clientQueue.Enqueue(client);
         PrintWithLock($"Client #{client.Id} created and added to queue.");
     }
 
-    void StartClientFactory()
+    static void StartClientFactory()
     {
-        // Define clientCreationTimer and bind CreateClient to Elapsed event
-
-        clientCreationTimer = new Timer(1000); // 1 second interval
+        clientCreationTimer.Interval = random.Next(5, 26);
         clientCreationTimer.Elapsed += CreateClient;
         clientCreationTimer.AutoReset = true;
         clientCreationTimer.Start();
         PrintWithLock("Client factory started.");
     }
 
-    void PrintWithLock(string message)
+    static void PrintWithLock(string message)
     {
         lock (consoleLock)
         {
             Console.WriteLine(message);
         }
     }
-
 }
 
 

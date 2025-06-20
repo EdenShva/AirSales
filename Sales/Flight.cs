@@ -15,8 +15,8 @@ public class Flight
     /// </summary>
     public const int EconomyClassCost = 300;
 
-    private int _firstClassSeats = 12;
-    private int _economyClassSeats = 120;
+    private int _firstClassSeats = 6;
+    private int _economyClassSeats = 12;
     private static readonly object BookingLock = new();
 
     /// <summary>
