@@ -1,12 +1,20 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿namespace Manager;
 
-namespace Manager
+/// <summary>
+/// The reason to stop the program execution
+/// </summary>
+public enum Reason
 {
-    internal class Reason
-    {
-    }
+    /// <summary>
+    /// Departure timer elapsed. It's time for departure.
+    /// </summary>
+    Departure,
+    /// <summary>
+    /// WeAreTooRichThreshold defined by Manager is reached.
+    /// </summary>
+    TooRich,
+    /// <summary>
+    /// All flights are sold out.
+    /// </summary>
+    SoldOut
 }

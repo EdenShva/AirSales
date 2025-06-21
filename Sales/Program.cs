@@ -6,6 +6,15 @@ using Sales;
 using SuperSimpleTcp;
 using Timer = System.Timers.Timer;
 
+/* * Air Sales System
+ * 
+ * This program simulates a ticket sales system for flights.
+ * It includes a TCP server to communicate with a manager process,
+ * handles multiple clients and workers, and uses memory-mapped files
+ * for shared state.
+ * 
+ */
+
 namespace Sales;
 class Program
 {
