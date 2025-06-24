@@ -21,7 +21,7 @@ class Program
 
     const string ServerAddress = "127.0.0.1:17000";
 
-    const int WeAreTooRichThreshold = 50000;
+    const int WeAreTooRichThreshold = 700000;
 
     static SimpleTcpClient tcpClient;
     static MemoryMappedFile mmf;
@@ -53,7 +53,7 @@ class Program
         tcpClient = new SimpleTcpClient(ServerAddress);
         tcpClient.Events.DataReceived += OnDataReceived;
         tcpClient.Connect();
-        Console.WriteLine("Connected to Sales TCP server.");
+        Console.WriteLine($"Connected to Sales TCP server at {ServerAddress}");
     }
 
     static void InitializeTimers()
@@ -64,7 +64,7 @@ class Program
         readMmfTimer.Start();
         Console.WriteLine("Memory read timer started.");
 
-        departureTimer = new Timer(10000);
+        departureTimer = new Timer(5000);
         departureTimer.Elapsed += DepartureTimerOnElapsed;
         departureTimer.AutoReset = false;
         departureTimer.Start();
@@ -77,7 +77,7 @@ class Program
 
         if (receivedCode == allFlightsSoldOut)
         {
-            Console.WriteLine("[OnDataReceived] [Manager] Received allFlightsSoldOut code from Sales.");
+            Console.WriteLine("[OnDataReceived] [Manager] Received code from Sales: allFlightsSoldOut.");
             EndOfOperation(Reason.SoldOut);
         }
         else

@@ -147,13 +147,13 @@ class Program
                 continue;
             }
 
-            PrintWithLock($"Worker #{worker.Id} started processing Client #{client.Id}");
+            //PrintWithLock($"Worker #{worker.Id} started processing Client #{client.Id}");
 
             bool sold = false;
 
             foreach (var flight in flights)
             {
-                if (flight.TryBookSeat(out int cost))
+                if (flight.TryBookSeat(out int cost, out string seatClass))
                 {
 
                     lock (salesStatLock)
@@ -164,7 +164,7 @@ class Program
 
                     UpdateSharedMemory();
 
-                    PrintWithLock($"Worker #{worker.Id} sold seat for {cost}$ to Client #{client.Id}");
+                    PrintWithLock($"[Sell] [{worker.Id}]Worker sold {seatClass} class to [{client.Id}]Client");
                     sold = true;
                     break;
                 }
@@ -218,7 +218,7 @@ class Program
     {
         var client = new Client(); 
         clientQueue.Enqueue(client);
-        PrintWithLock($"Client #{client.Id} created and added to queue.");
+        PrintWithLock($"[CreateClient] [{client.Id}]Client created.");
     }
 
     static void StartClientFactory()

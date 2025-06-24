@@ -1,30 +1,15 @@
 ﻿namespace Sales;
 
-/// <summary>
-/// Represents a flight with bookable seats.
-/// </summary>
+
 public class Flight
 {
-    /// <summary>
-    /// The cost of a first-class ticket.
-    /// </summary>
     public const int FirstClassCost = 800;
-
-    /// <summary>
-    /// The cost of an economy-class ticket.
-    /// </summary>
     public const int EconomyClassCost = 300;
-
-    private int _firstClassSeats = 6;
-    private int _economyClassSeats = 12;
+    private int _firstClassSeats = 12;
+    private int _economyClassSeats = 120;
     private static readonly object BookingLock = new();
 
-    /// <summary>
-    /// Attempts to book a seat on the flight.
-    /// </summary>
-    /// <param name="cost">Outputs the cost of the booked seat. If no seats are available, the cost is set to 0.</param>
-    /// <returns><c>true</c> if a seat was successfully booked; otherwise, <c>false</c>.</returns>
-    public bool TryBookSeat(out int cost)
+    public bool TryBookSeat(out int cost, out string seatClass)
     {
         lock (BookingLock)
         {
@@ -34,6 +19,8 @@ public class Flight
             cost = firstSold && economySold ? 0 :
                 random ? firstSold ? EconomyClassCost : FirstClassCost :
                 economySold ? FirstClassCost : EconomyClassCost;
+            seatClass = cost == FirstClassCost ? "First" :
+            cost == EconomyClassCost ? "Economy" : "None";
             _firstClassSeats -= cost == FirstClassCost ? 1 : 0;
             _economyClassSeats -= cost == EconomyClassCost ? 1 : 0;
             return cost != 0;
