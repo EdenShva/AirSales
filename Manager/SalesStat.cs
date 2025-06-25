@@ -1,26 +1,18 @@
 ﻿namespace Manager;
 
-/// <summary>
-/// Represents sales statistics, including the total number of clients served
-/// and the total revenue. Access to these properties is thread-safe.
-/// </summary>
+// Represents sales statistics, including the total number of clients served
+// and the total revenue. Access to these properties is thread-safe.
 public class SalesStat
 {
-    /// <summary>
-    /// Lock object for synchronizing access to <see cref="_totalClientsServed"/>.
-    /// </summary>
+    // Lock object for synchronizing access to <see cref="_totalClientsServed"/>.
     private static readonly object TotalClientsServedLock = new();
 
-    /// <summary>
-    /// Lock object for synchronizing access to <see cref="_totalRevenue"/>.
-    /// </summary>
+    // Lock object for synchronizing access to <see cref="_totalRevenue"/>.
     private static readonly object TotalRevenueLock = new();
 
     private int _totalClientsServed;
 
-    /// <summary>
-    /// Gets or sets the total number of clients served. Access is synchronized to ensure thread safety.
-    /// </summary>
+    // Gets or sets the total number of clients served. Access is synchronized to ensure thread safety.
     public int TotalClientsServed
     {
         get
@@ -41,9 +33,7 @@ public class SalesStat
 
     private int _totalRevenue;
 
-    /// <summary>
-    /// Gets or sets the total revenue. Access is synchronized to ensure thread safety.
-    /// </summary>
+    // Gets or sets the total revenue. Access is synchronized to ensure thread safety.
     public int TotalRevenue
     {
         get
@@ -62,10 +52,7 @@ public class SalesStat
         }
     }
 
-    /// <summary>
-    /// Returns a string representation of the sales statistics.
-    /// </summary>
-    /// <returns>A formatted string displaying total clients served and total revenue.</returns>
+    // Returns a string representation of the sales statistics.
     public override string ToString()
     {
         return $"{nameof(TotalClientsServed)}={TotalClientsServed}, {nameof(TotalRevenue)}={TotalRevenue}";

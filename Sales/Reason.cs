@@ -1,20 +1,12 @@
 ﻿namespace Sales;
 
-/// <summary>
-/// The reason to stop the program execution
-/// </summary>
+// The reason to stop the program execution
 public enum Reason
 {
-    /// <summary>
-    /// Departure timer elapsed. It's time for departure.
-    /// </summary>
+    // Departure timer elapsed. It's time for departure.
     Departure,
-    /// <summary>
-    /// WeAreTooRichThreshold defined by Manager is reached.
-    /// </summary>
+    // WeAreTooRichThreshold defined by Manager is reached.
     TooRich,
-    /// <summary>
-    /// All flights are sold out.
-    /// </summary>
+    // All flights are sold out.
     SoldOut
 }

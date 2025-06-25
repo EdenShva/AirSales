@@ -43,8 +43,8 @@ class Program
 
     static void InitializeSharedMemory()
     {
-        mmf = MemoryMappedFile.OpenExisting("AirSalesMMF");
-        mmfMutex = new Mutex(false, "Global\\AirSalesMMF_Mutex");
+        mmf = MemoryMappedFile.OpenExisting("AirSalesMMF_d19d8f1a-9fc5-425f-ba56-60f9815998ac");
+        mmfMutex = new Mutex(false, "Global\\AirSalesMutex_d19d8f1a-9fc5-425f-ba56-60f9815998ac");
         Console.WriteLine("Shared memory and mutex initialized.");
     }
 

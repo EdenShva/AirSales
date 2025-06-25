@@ -32,7 +32,7 @@ class Program
     private static object salesStatLock = new();
     private static object endOfSalesLock = new();
 
-    private static Random random = new();
+
     private static Timer clientCreationTimer=new();
     private static CancellationTokenSource cts = new();  
     private static SalesStat salesStat = new(); 
@@ -71,10 +71,10 @@ class Program
 
     static void InitializeSharedMemory()
     {
-        mmf = MemoryMappedFile.CreateOrOpen("AirSalesMMF", 4096);
-        PrintWithLock("Memory-mapped file created (4KB).");
+        mmf = MemoryMappedFile.CreateOrOpen("AirSalesMMF_d19d8f1a-9fc5-425f-ba56-60f9815998ac", Environment.SystemPageSize);
+        PrintWithLock($"Memory-mapped file created ({Environment.SystemPageSize}).");
 
-        mmfMutex = new(false, "Global\\AirSalesMMF_Mutex");
+        mmfMutex = new(false, "Global\\AirSalesMutex_d19d8f1a-9fc5-425f-ba56-60f9815998ac");
     }
 
     static void StartTcpServer()
@@ -223,7 +223,7 @@ class Program
 
     static void StartClientFactory()
     {
-        clientCreationTimer.Interval = random.Next(5, 26);
+        clientCreationTimer.Interval = Random.Shared.Next(5, 26);
         clientCreationTimer.Elapsed += CreateClient;
         clientCreationTimer.AutoReset = true;
         clientCreationTimer.Start();
