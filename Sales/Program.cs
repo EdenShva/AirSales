@@ -18,37 +18,51 @@ using Timer = System.Timers.Timer;
 namespace Sales;
 class Program
 {
+    // Signal codes for communication with manager process
     const byte departure = 0x5D;
     const byte weAreTooRichNow = 0x7A; 
     const byte allFlightsSoldOut = 0x9E;
 
+    // Constants for the number of workers and flights
     const int nWorkers = 5;
     const int nFlights = 3;
-    
+
+    // State variables
     private static string managerIpPort = "";
     private static bool endOfSalesCalled = false;
 
+    // Locks for thread-safe access to console and shared state
     private static object consoleLock = new();
     private static object salesStatLock = new();
     private static object endOfSalesLock = new();
 
-
+    // Timer to generate new clients
     private static Timer clientCreationTimer=new();
-    private static CancellationTokenSource cts = new();  
-    private static SalesStat salesStat = new(); 
 
+    // Cancellation token for stopping workers
+    private static CancellationTokenSource cts = new();
+
+    // Sales statistics tracker (money and clients served)
+    private static SalesStat salesStat = new();
+
+    // Queue for incoming clients
     private static ConcurrentQueue<Client> clientQueue = new();
+
+    // List of available flights
     private static List<Flight> flights = new();
 
+    // TCP server for manager communication
     private static SimpleTcpServer tcpServer;
+
+    // Memory-mapped file and mutex for inter-process communication
     private static MemoryMappedFile mmf;
     private static Mutex mmfMutex;  
 
     static void Main(string[] args)
     {
-        InitializeFlights();
-        InitializeSharedMemory();
-        StartTcpServer();
+        InitializeFlights();   
+        InitializeSharedMemory();   
+        StartTcpServer();  
 
         Console.WriteLine("Press any key when manager process ready..");
         Console.ReadKey();
@@ -56,7 +70,7 @@ class Program
         StartClientFactory();
         StartWorkerThreads();
 
-        Console.ReadLine();
+        Console.ReadLine(); // Wait to keep main thread alive
         return;
     }
 
@@ -86,6 +100,7 @@ class Program
         PrintWithLock("TCP server started on port 17000.");
     }
 
+    // Handle data received from the manager
     static void TcpServerOnDataReceived(object? sender, DataReceivedEventArgs e)
     {
         if (e.Data.Array == null || e.Data.Count == 0)
@@ -109,12 +124,14 @@ class Program
         }
     }
 
+    // Handle connection from manager process
     static void TcpServerOnClientConnected(object? sender, ConnectionEventArgs e)
     {
         managerIpPort = e.IpPort;
         PrintWithLock($"Manager connected from {managerIpPort}");
     }
 
+    // Update shared memory with current sales statistics
     static void UpdateSharedMemory()
     {
         try
@@ -134,6 +151,7 @@ class Program
         }
     }
 
+    // Main selling logic for each worker
     static void Sell(object? obj)
     {
         if (obj is not Worker worker)
@@ -143,7 +161,7 @@ class Program
         {
             if (!clientQueue.TryDequeue(out var client))
             {
-                Thread.Sleep(10);
+                Thread.Sleep(10);   // Wait if no clients available
                 continue;
             }
 
@@ -151,11 +169,12 @@ class Program
 
             bool sold = false;
 
+            // Try to sell a seat to the client
             foreach (var flight in flights)
             {
                 if (flight.TryBookSeat(out int cost, out string seatClass))
                 {
-
+                    // Update sales stats
                     lock (salesStatLock)
                     {
                         salesStat.TotalRevenue += cost;
@@ -170,6 +189,7 @@ class Program
                 }
             }
 
+            // If all flights are sold out, end sales
             if (!sold && flights.All(f => f.IsSoldOut()))
             {
                 PrintWithLock("All flights sold out. Ending sales.");
@@ -179,6 +199,7 @@ class Program
         }
     }
 
+    // End the ticket sales process
     static void EndOfSales(Reason reason)
     {
         lock (endOfSalesLock)
@@ -187,11 +208,12 @@ class Program
             endOfSalesCalled = true;
         }
 
-        cts.Cancel(); 
-        clientCreationTimer?.Stop();
+        cts.Cancel();   // Stop worker threads
+        clientCreationTimer?.Stop();    // Stop client creation
 
         PrintWithLock($"Sales ended due to: {reason}");
 
+        // Notify manager if sales ended due to sold-out condition
         if (reason == Reason.SoldOut)
         {
             if (!string.IsNullOrEmpty(managerIpPort))
@@ -203,6 +225,7 @@ class Program
         }
     }
 
+    // Start background worker threads
     static void StartWorkerThreads()
     {
         for (int i = 0; i < nWorkers; i++)
@@ -214,6 +237,7 @@ class Program
         }
     }
 
+    // Timer callback: creates a new client and adds to queue
     static void CreateClient(object? sender, ElapsedEventArgs e)
     {
         var client = new Client(); 
@@ -223,6 +247,7 @@ class Program
 
     static void StartClientFactory()
     {
+        // Start client generation with a timer
         clientCreationTimer.Interval = Random.Shared.Next(5, 26);
         clientCreationTimer.Elapsed += CreateClient;
         clientCreationTimer.AutoReset = true;
@@ -230,6 +255,7 @@ class Program
         PrintWithLock("Client factory started.");
     }
 
+    // Thread-safe printing to the console
     static void PrintWithLock(string message)
     {
         lock (consoleLock)
